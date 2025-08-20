@@ -55,3 +55,7 @@ services:
             - BIND_ADDRESS=0.0.0.0
         image: jonnyan404/zerotier-web
 ```
+
+# FAQ
+
+登录页面的用户名可不填写,**保证密码跟你设置一样**.
