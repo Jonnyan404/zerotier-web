@@ -33,3 +33,23 @@ bash deploy_cf.sh
 - BIND_ADDRESS=0.0.0.0 #自定义绑定IP(默认0.0.0.0)
 - PORT=3000 #自定义端口(默认3000)
 - UI_PASSWORD=your_password #自定义访问密码(默认无)
+
+
+### docker-compose
+
+```
+name: zerotier-web
+services:
+    zerotier-web:
+        restart: always
+        container_name: zerotier-web
+        ports:
+            - 3000:3000
+        environment:
+            - ZT_API_TOKEN=your_api_token
+            - ZT_NETWORK_ID=your_network_id
+            - PORT=3000
+            - UI_PASSWORD=your_password
+            - BIND_ADDRESS=0.0.0.0
+        image: jonnyan404/zerotier-web
+```
