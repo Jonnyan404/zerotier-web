@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ZeroTier Dashboard</title>
+  <link rel="manifest" href="/manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial}
+    .auth-yes{color:#16a34a}
+    .auth-no{color:#ef4444}
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div id="app" class="max-w-6xl mx-auto p-4">
+    <header class="flex items-center justify-between mb-4">
+      <div>
+        <h1 class="text-2xl font-semibold">ZeroTier 节点信息</h1>
+        <p class="text-sm text-gray-500">Pull from ZeroTier Central — 仅展示基本信息</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="https://github.com/Jonnyan404/zerotier-web" target="_blank" class="text-gray-600 hover:text-black" aria-label="GitHub">
+          <svg class="w-6 h-6" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8a8 8 0 005.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2 .37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.22 2.2.82a7.6 7.6 0 012-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.19 0 .21.15.46.55.38A8 8 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+        </a>
+  <a href="https://hub.docker.com/r/jonnyan404/zerotier-web" target="_blank" class="text-gray-600 hover:text-black" aria-label="Docker Hub">
+          <svg class="w-6 h-6" viewBox="0 0 24 20" fill="none"><path d="M1 13c0 0 1-4 7-4 0 0 1-3 6-3 0 0 1 3 1 6 2 0 0 4 0 4 0s-1 4-6 4H1z" fill="#2496ED"/></svg>
+        </a>
+  <!-- 刷新按钮已移除；请刷新页面以获取最新数据，或开启自动刷新 -->
+      </div>
+    </header>
+
+    <!-- error banner -->
+    <div v-if="errorMessage" class="mb-4">
+      <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded">
+        <strong>错误:</strong> {{ errorMessage }}
+      </div>
+    </div>
+
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <div>
+        <label class="text-sm mr-2">认证过滤</label>
+        <select v-model="authFilter" class="border rounded px-2 py-1">
+          <option value="all">全部</option>
+          <option value="authorized">已认证</option>
+          <option value="unauthorized">未认证</option>
+        </select>
+      </div>
+      <div class="text-sm text-gray-500">
+        <label class="inline-flex items-center gap-2">
+          <input type="checkbox" v-model="autoRefresh" class="form-checkbox h-4 w-4" />
+          <span>自动刷新（手动开启）</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="hidden md:block bg-white shadow rounded overflow-hidden">
+      <table class="w-full table-auto">
+        <thead class="bg-gray-100 text-sm text-gray-700">
+          <tr>
+            <th class="p-3 text-left cursor-pointer" @click="setSort('authorized')">认证 <span class="text-xs">{{ sortLabel('authorized') }}</span></th>
+            <th class="p-3 text-left cursor-pointer" @click="setSort('display')">节点 <span class="text-xs">{{ sortLabel('display') }}</span></th>
+            <th class="p-3 text-left cursor-pointer" @click="setSort('ip')">IP <span class="text-xs">{{ sortLabel('ip') }}</span></th>
+            <th class="p-3 text-left cursor-pointer" @click="setSort('remoteIp')">远程IP <span class="text-xs">{{ sortLabel('remoteIp') }}</span></th>
+            <th class="p-3 text-left cursor-pointer" @click="setSort('lastOnline')">最后在线 <span class="text-xs">{{ sortLabel('lastOnline') }}</span></th>
+            <th class="p-3 text-left cursor-pointer" @click="setSort('version')">版本 <span class="text-xs">{{ sortLabel('version') }}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(n, idx) in sortedNodes" :key="n.nodeId" class="hover:bg-blue-50 odd:bg-white even:bg-gray-50">
+            <td class="p-3"><span :class="n.authorized ? 'auth-yes' : 'auth-no'">{{ n.authorized ? '✅' : '❌' }}</span></td>
+            <td class="p-3">{{ n.display }}</td>
+            <td class="p-3">{{ n.ip || '-' }}</td>
+            <td class="p-3">{{ n.remoteIp || '-' }}</td>
+            <td class="p-3">{{ relTime(n.lastOnline) }}</td>
+            <td class="p-3">{{ n.version || '-' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="md:hidden space-y-3">
+  <div v-for="(n, idx) in sortedNodes" :key="n.nodeId" :class="[(idx % 2 === 0) ? 'bg-white' : 'bg-gray-50', 'p-3 rounded shadow']">
+        <div class="flex justify-between items-start">
+          <div>
+            <div class="text-sm text-gray-600">{{ n.display }}</div>
+            <div class="text-xs text-gray-500">{{ n.version || '-' }}</div>
+          </div>
+          <div class="text-right">
+            <div :class="n.authorized ? 'auth-yes font-semibold' : 'auth-no font-semibold'">{{ n.authorized ? '已认证' : '未认证' }}</div>
+            <div class="text-xs text-gray-500">{{ relTime(n.lastOnline) }}</div>
+          </div>
+        </div>
+        <div class="mt-2 grid grid-cols-2 gap-2 text-sm text-gray-700">
+          <div>IP: <span class="font-medium">{{ n.ip || '-' }}</span></div>
+          <div>远程IP: <span class="font-medium">{{ n.remoteIp || '-' }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="mt-6 text-sm text-gray-500">零配置演示版 — 仅 Pull 模式</footer>
+  </div>
+
+    <script>
+  const { createApp, ref, computed, onMounted, onBeforeUnmount, watch } = Vue;
+
+  createApp({
+    setup(){
+      const nodes = ref([]);
+      const sortKey = ref('lastOnline');
+      const sortDir = ref(-1);
+      const authFilter = ref('all');
+  const autoRefresh = ref(false);
+      let timer = null;
+
+      function ipToNum(ip){
+        if (!ip) return null;
+        const part = ip.split(/[ ,/]/)[0];
+        const m = part.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+        if (!m) return null;
+        return (parseInt(m[1])<<24) + (parseInt(m[2])<<16) + (parseInt(m[3])<<8) + parseInt(m[4]);
+      }
+
+      const errorMessage = ref('');
+
+      async function fetchNodes(){
+        errorMessage.value = '';
+        try {
+          const res = await fetch('/api/nodes');
+          if (!res.ok){
+            const txt = await res.text().catch(()=>res.statusText || '');
+            errorMessage.value = `请求失败: ${res.status} ${res.statusText} ${txt}`;
+            nodes.value = [];
+            return;
+          }
+          const d = await res.json();
+          nodes.value = (d.nodes||[]);
+          if (!Array.isArray(nodes.value) || nodes.value.length === 0) {
+            errorMessage.value = '未获取到节点数据,请检查变量值 ZT_API_TOKEN 和 ZT_NETWORK_ID 是否正确';
+          } else {
+            errorMessage.value = '';
+          }
+        } catch (e) {
+          errorMessage.value = `无法获取数据: ${e && e.message ? e.message : e}`;
+          nodes.value = [];
+        }
+      }
+
+  function refresh(){ fetchNodes(); }
+
+      function setSort(k){ if (sortKey.value===k) sortDir.value *= -1; else { sortKey.value = k; sortDir.value = 1; } }
+      function sortLabel(k){ if (sortKey.value!==k) return ''; return sortDir.value>0? '▲':'▼'; }
+
+      const filtered = computed(()=>{
+        let list = nodes.value.slice();
+        if (authFilter.value === 'authorized') list = list.filter(n=>n.authorized);
+        if (authFilter.value === 'unauthorized') list = list.filter(n=>!n.authorized);
+        return list;
+      });
+
+      const sortedNodes = computed(()=>{
+        const list = filtered.value.slice();
+        list.sort((a,b)=>{
+          const A = a[sortKey.value];
+          const B = b[sortKey.value];
+          if (sortKey.value === 'ip' || sortKey.value === 'remoteIp'){
+            const na = ipToNum(A); const nb = ipToNum(B);
+            if (na==null && nb==null) return 0;
+            if (na==null) return 1 * sortDir.value;
+            if (nb==null) return -1 * sortDir.value;
+            return (na - nb) * sortDir.value;
+          }
+          if (sortKey.value === 'lastOnline'){
+            const ta = A||0; const tb = B||0; return (ta - tb) * sortDir.value;
+          }
+          if (sortKey.value === 'authorized'){
+            return ((A===B)?0:(A? -1:1)) * sortDir.value;
+          }
+          return (''+(A||'')).localeCompare(''+(B||'')) * sortDir.value;
+        });
+        return list;
+      });
+
+      function relTime(ts){ if (!ts) return '-'; const s = Math.floor((Date.now()-ts)/1000); if (s<60) return s+'s ago'; if (s<3600) return Math.floor(s/60)+'m ago'; if (s<86400) return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }
+
+      onMounted(()=>{
+        fetchNodes();
+        if (autoRefresh.value) timer = setInterval(fetchNodes, 30000);
+        if ('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }
+      });
+      watch(autoRefresh, (v)=>{
+        if (v){ if (!timer) timer = setInterval(fetchNodes, 30000); }
+        else { if (timer) { clearInterval(timer); timer = null; } }
+      });
+      onBeforeUnmount(()=>{ if (timer) clearInterval(timer); });
+
+  return { nodes, sortedNodes, relTime, refresh, setSort, sortLabel, authFilter, autoRefresh, errorMessage };
+    }
+  }).mount('#app');
+  </script>
+</body>
+</html>
