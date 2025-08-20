@@ -3,7 +3,7 @@
 说明（中文）：本仓库提供一个最小化的 ZeroTier 节点信息展示面板示例，方便查看状态的小玩具.
 
 
-![](https://github.com/Jonnyan404/zerotier/blob/main/demo.png)
+![](https://github.com/Jonnyan404/zerotier-web/blob/main/demo.png)
 
 功能
 - 以列表形式展示：节点、IP、远程IP、最后在线、版本号
